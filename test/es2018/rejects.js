@@ -1,4 +1,3 @@
-
 QUnit.module( "assert" );
 
 function CustomError( message ) {
@@ -9,13 +8,11 @@ CustomError.prototype.toString = function() {
 	return this.message;
 };
 
-QUnit.test( "throws", function( assert ) {
+QUnit.test( "rejects", function( assert ) {
 	assert.expect( 1 );
 
-	assert.throws(
-		function() {
-			throw new CustomError( "some error description" );
-		},
+	assert.rejects(
+		Promise.reject( new CustomError( "some error description" ) ),
 		err => {
 			return err instanceof CustomError && /description/.test( err );
 		},
@@ -23,15 +20,13 @@ QUnit.test( "throws", function( assert ) {
 	);
 } );
 
-QUnit.test( "throws with expected class", function( assert ) {
+QUnit.test( "rejects with expected class", function( assert ) {
 	assert.expect( 1 );
 
 	class CustomError extends Error {}
 
-	assert.throws(
-		() => {
-			throw new CustomError( "foo" );
-		},
+	assert.rejects(
+		Promise.reject( new CustomError( "foo" ) ),
 		CustomError,
 		"Expected value is a class extending Error"
 	);
@@ -48,13 +43,11 @@ QUnit.module( "failing assertions", {
 		};
 	}
 }, function() {
-	QUnit.test( "throws", function( assert ) {
-		assert.throws(
-			function() {
-				throw "foo";
-			},
+	QUnit.test( "rejects", function( assert ) {
+		assert.rejects(
+			Promise.reject(),
 			() => false,
-			"throws fails when expected function returns false"
+			"rejects fails when expected function returns false"
 		);
 	} );
 
@@ -76,12 +69,10 @@ QUnit.module( "failing assertions", {
 		QUnit.test( "does not die when class is expected", function( assert ) {
 			class CustomError extends Error {}
 
-			assert.throws(
-				() => {
-					throw new Error( "foo" );
-				},
+			assert.rejects(
+				Promise.reject( new Error( "foo" ) ),
 				CustomError,
-				"throws fails gracefully when expected value class does not use 'new'"
+				"rejects fails gracefully when expected value class does not use 'new'"
 			);
 		} );
 	} );

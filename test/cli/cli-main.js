@@ -177,6 +177,8 @@ QUnit.module( "CLI Main", () => {
 		}
 	} );
 
+	// Regression test against "details of begin error swallowed"
+	// https://github.com/qunitjs/qunit/issues/1446
 	QUnit.test( "report failure in begin callback", async assert => {
 		const command = "qunit bad-callbacks/begin-throw.js";
 
@@ -188,11 +190,7 @@ QUnit.module( "CLI Main", () => {
 			} );
 		} catch ( e ) {
 			assert.equal( e.code, 1 );
-
-			// FIXME: The details of this error are swallowed
-			// https://github.com/qunitjs/qunit/issues/1446
-			assert.equal( e.stdout, "TAP version 13" );
-			assert.equal( e.stderr, "Error: Process exited before tests finished running" );
+			assert.equal( e.stdout, expectedOutput[ command ] );
 		}
 	} );
 
@@ -207,17 +205,7 @@ QUnit.module( "CLI Main", () => {
 			} );
 		} catch ( e ) {
 			assert.equal( e.code, 1 );
-			assert.equal( e.stdout, `TAP version 13
-ok 1 module1 > test1
-1..1
-# pass 1
-# skip 0
-# todo 0
-# fail 0` );
-			assert.equal( e.stderr, `Error: No dice
-    at /qunit/test/cli/fixtures/bad-callbacks/done-throw.js:2:8
-    at /qunit/qunit/qunit.js
-    at internal` );
+			assert.equal( e.stdout, expectedOutput[ command ] );
 		}
 	} );
 
@@ -583,78 +571,55 @@ CALLBACK: done`;
 		} );
 	} );
 
-	QUnit.module( "semaphore", () => {
-		QUnit.test( "invalid value", async assert => {
-			try {
-				await execute( "qunit semaphore/nan.js" );
-			} catch ( e ) {
-				assert.pushResult( {
-					result: e.stdout.includes( "message: Invalid value on test.semaphore" ),
-					actual: e.stdout + "\n" + e.stderr
-				} );
-			}
-		} );
-
-		QUnit.test( "try to restart ", async assert => {
-			try {
-				await execute( "qunit semaphore/restart.js" );
-			} catch ( e ) {
-				assert.pushResult( {
-					result: e.stdout.includes( "message: \"Tried to restart test while already started (test's semaphore was 0 already)" ),
-					actual: e.stdout + "\n" + e.stderr
-				} );
-			}
-		} );
-	} );
-
 	QUnit.module( "assert.async", () => {
 
-		QUnit.test( "assert.async callback after tests timeout", async assert => {
+		QUnit.test( "call after tests timeout", async assert => {
 			const command = "qunit done-after-timeout.js";
 			try {
 				await execute( command );
 			} catch ( e ) {
-				assert.equal( e.stdout, expectedOutput[ command ] );
-
-				assert.pushResult( {
-					result: e.stderr.includes( "Error: `assert.async` callback from test \"times out before scheduled done is called\" called after tests finished." ),
-					actual: e.stderr
-				} );
 				assert.equal( e.code, 1 );
+				assert.equal( e.stdout, expectedOutput[ command ] );
 			}
 		} );
 
-		QUnit.test( "drooling calls across tests to assert.async callback", async assert => {
+		QUnit.test( "drooling call to callback across tests", async assert => {
 			const command = "qunit drooling-done.js";
 			try {
 				await execute( command );
 			} catch ( e ) {
 				assert.equal( e.code, 1 );
-				assert.equal( e.stderr, "" );
-
-				// code coverage and various Node versions can alter the stacks,
-				// so we can't compare exact strings, but we can spot-check
-				assert.true( e.stdout.includes(
-					"not ok 2 Test B\n" +
-					"  ---\n" +
-					"  message: \"`assert.async` callback from test \\\"Test A\\\" was called during this test.\"" ), e.stdout );
+				assert.equal( e.stdout, expectedOutput[ command ] );
 			}
 		} );
 
-		QUnit.test( "too many calls to assert.async callback", async assert => {
+		QUnit.test( "extra call to callback across tests", async assert => {
+			const command = "qunit drooling-extra-done.js";
+			try {
+				await execute( command );
+			} catch ( e ) {
+				assert.equal( e.code, 1 );
+				assert.equal( e.stdout, expectedOutput[ command ] );
+			}
+		} );
+
+		QUnit.test( "extra call to callback outside tests", async assert => {
+			const command = "qunit drooling-extra-done-outside.js";
+			try {
+				await execute( command );
+			} catch ( e ) {
+				assert.equal( e.code, 1 );
+				assert.equal( e.stdout, expectedOutput[ command ] );
+			}
+		} );
+
+		QUnit.test( "too many calls to callback", async assert => {
 			const command = "qunit too-many-done-calls.js";
 			try {
 				await execute( command );
 			} catch ( e ) {
 				assert.equal( e.code, 1 );
-				assert.equal( e.stderr, "" );
-
-				// code coverage and various Node versions can alter the stacks,
-				// so we can't compare exact strings, but we can spot-check
-				assert.true( e.stdout.includes(
-					"not ok 1 Test A\n" +
-					"  ---\n" +
-					"  message: Too many calls to the `assert.async` callback" ), e.stdout );
+				assert.equal( e.stdout, expectedOutput[ command ] );
 			}
 		} );
 

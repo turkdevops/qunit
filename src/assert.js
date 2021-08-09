@@ -72,47 +72,10 @@ class Assert {
 		}
 	}
 
-	// Put a hold on processing and return a function that will release it a maximum of once.
+	// Create a new async pause and return a new function that can release the pause.
 	async( count ) {
-		const test = this.test;
-
-		let popped = false,
-			acceptCallCount = count;
-
-		if ( typeof acceptCallCount === "undefined" ) {
-			acceptCallCount = 1;
-		}
-
-		const resume = internalStop( test );
-
-		return function done() {
-
-			if ( config.current === undefined ) {
-				throw new Error( "`assert.async` callback from test \"" +
-					test.testName + "\" called after tests finished." );
-			}
-
-			if ( config.current !== test ) {
-				config.current.pushFailure(
-					"`assert.async` callback from test \"" +
-					test.testName + "\" was called during this test." );
-				return;
-			}
-
-			if ( popped ) {
-				test.pushFailure( "Too many calls to the `assert.async` callback",
-					sourceFromStacktrace( 2 ) );
-				return;
-			}
-
-			acceptCallCount -= 1;
-			if ( acceptCallCount > 0 ) {
-				return;
-			}
-
-			popped = true;
-			resume();
-		};
+		const requiredCalls = count === undefined ? 1 : count;
+		return internalStop( this.test, requiredCalls );
 	}
 
 	// Exports test.push() to the user API
@@ -292,23 +255,26 @@ class Assert {
 	}
 
 	[ "throws" ]( block, expected, message ) {
-		let actual,
-			result = false;
+
+		[ expected, message ] = validateExpectedExceptionArgs( expected, message, "throws" );
 
 		const currentTest = ( this instanceof Assert && this.test ) || config.current;
 
-		// 'expected' is optional unless doing string comparison
-		if ( objectType( expected ) === "string" ) {
-			if ( message == null ) {
-				message = expected;
-				expected = null;
-			} else {
-				throw new Error(
-					"throws/raises does not accept a string value for the expected argument.\n" +
-					"Use a non-string object value (e.g. regExp) instead if it's necessary."
-				);
-			}
+		if ( objectType( block ) !== "function" ) {
+			const message = "The value provided to `assert.throws` in " +
+				"\"" + currentTest.testName + "\" was not a function.";
+
+			currentTest.assert.pushResult( {
+				result: false,
+				actual: block,
+				message
+			} );
+
+			return;
 		}
+
+		let actual;
+		let result = false;
 
 		currentTest.ignoreGlobalErrors = true;
 		try {
@@ -319,48 +285,7 @@ class Assert {
 		currentTest.ignoreGlobalErrors = false;
 
 		if ( actual ) {
-			const expectedType = objectType( expected );
-
-			// We don't want to validate thrown error
-			if ( !expected ) {
-				result = true;
-
-			// Expected is a regexp
-			} else if ( expectedType === "regexp" ) {
-				result = expected.test( errorString( actual ) );
-
-				// Log the string form of the regexp
-				expected = String( expected );
-
-			// Expected is a constructor, maybe an Error constructor.
-			// Note the extra check on its prototype - this is an implicit
-			// requirement of "instanceof", else it will throw a TypeError.
-			} else if ( expectedType === "function" &&
-				expected.prototype !== undefined && actual instanceof expected ) {
-				result = true;
-
-			// Expected is an Error object
-			} else if ( expectedType === "object" ) {
-				result = actual instanceof expected.constructor &&
-					actual.name === expected.name &&
-					actual.message === expected.message;
-
-				// Log the string form of the Error object
-				expected = errorString( expected );
-
-			// Expected is a validation function which returns true if validation passed
-			} else if ( expectedType === "function" ) {
-
-				// protect against accidental semantics which could hard error in the test
-				try {
-					result = expected.call( {}, actual ) === true;
-					expected = null;
-				} catch ( e ) {
-
-					// assign the "expected" to a nice error string to communicate the local failure to the user
-					expected = errorString( e );
-				}
-			}
+			[ result, expected, message ] = validateException( actual, expected, message );
 		}
 
 		currentTest.assert.pushResult( {
@@ -374,28 +299,10 @@ class Assert {
 	}
 
 	rejects( promise, expected, message ) {
-		let result = false;
+
+		[ expected, message ] = validateExpectedExceptionArgs( expected, message, "rejects" );
 
 		const currentTest = ( this instanceof Assert && this.test ) || config.current;
-
-		// 'expected' is optional unless doing string comparison
-		if ( objectType( expected ) === "string" ) {
-			if ( message === undefined ) {
-				message = expected;
-				expected = undefined;
-			} else {
-				message = "assert.rejects does not accept a string value for the expected " +
-					"argument.\nUse a non-string object value (e.g. validator function) instead " +
-					"if necessary.";
-
-				currentTest.assert.pushResult( {
-					result: false,
-					message: message
-				} );
-
-				return;
-			}
-		}
 
 		const then = promise && promise.then;
 		if ( objectType( then ) !== "function" ) {
@@ -429,47 +336,8 @@ class Assert {
 			},
 
 			function handleRejection( actual ) {
-				const expectedType = objectType( expected );
-
-				// We don't want to validate
-				if ( expected === undefined ) {
-					result = true;
-
-					// Expected is a regexp
-				} else if ( expectedType === "regexp" ) {
-					result = expected.test( errorString( actual ) );
-
-					// Log the string form of the regexp
-					expected = String( expected );
-
-					// Expected is a constructor, maybe an Error constructor
-				} else if ( expectedType === "function" && actual instanceof expected ) {
-					result = true;
-
-					// Expected is an Error object
-				} else if ( expectedType === "object" ) {
-					result = actual instanceof expected.constructor &&
-						actual.name === expected.name &&
-						actual.message === expected.message;
-
-					// Log the string form of the Error object
-					expected = errorString( expected );
-
-					// Expected is a validation function which returns true if validation passed
-				} else {
-					if ( expectedType === "function" ) {
-						result = expected.call( {}, actual ) === true;
-						expected = null;
-
-						// Expected is some other invalid type
-					} else {
-						result = false;
-						message = "invalid expected value provided to `assert.rejects` " +
-							"callback in \"" + currentTest.testName + "\": " +
-							expectedType + ".";
-					}
-				}
-
+				let result;
+				[ result, expected, message ] = validateException( actual, expected, message );
 
 				currentTest.assert.pushResult( {
 					result,
@@ -479,11 +347,95 @@ class Assert {
 					expected,
 					message
 				} );
-
 				done();
 			}
 		);
 	}
+}
+
+function validateExpectedExceptionArgs( expected, message, assertionMethod ) {
+	const expectedType = objectType( expected );
+
+	// 'expected' is optional unless doing string comparison
+	if ( expectedType === "string" ) {
+		if ( message === undefined ) {
+			message = expected;
+			expected = undefined;
+			return [ expected, message ];
+		} else {
+			throw new Error(
+				"assert." + assertionMethod +
+				" does not accept a string value for the expected argument.\n" +
+				"Use a non-string object value (e.g. RegExp or validator function) " +
+				"instead if necessary."
+			);
+		}
+	}
+
+	const valid =
+		!expected || // TODO: be more explicit here
+		expectedType === "regexp" ||
+		expectedType === "function" ||
+		expectedType === "object";
+
+	if ( !valid ) {
+		const message =
+			"Invalid expected value type (" + expectedType + ") " +
+			"provided to assert." + assertionMethod + ".";
+		throw new Error( message );
+	}
+
+	return [ expected, message ];
+}
+
+function validateException( actual, expected, message ) {
+	let result = false;
+	const expectedType = objectType( expected );
+
+	// These branches should be exhaustive, based on validation done in validateExpectedException
+
+	// We don't want to validate
+	if ( !expected ) {
+		result = true;
+
+	// Expected is a regexp
+	} else if ( expectedType === "regexp" ) {
+		result = expected.test( errorString( actual ) );
+
+		// Log the string form of the regexp
+		expected = String( expected );
+
+	// Expected is a constructor, maybe an Error constructor.
+	// Note the extra check on its prototype - this is an implicit
+	// requirement of "instanceof", else it will throw a TypeError.
+	} else if ( expectedType === "function" &&
+		expected.prototype !== undefined && actual instanceof expected ) {
+		result = true;
+
+	// Expected is an Error object
+	} else if ( expectedType === "object" ) {
+		result = actual instanceof expected.constructor &&
+			actual.name === expected.name &&
+			actual.message === expected.message;
+
+		// Log the string form of the Error object
+		expected = errorString( expected );
+
+	// Expected is a validation function which returns true if validation passed
+	} else if ( expectedType === "function" ) {
+
+		// protect against accidental semantics which could hard error in the test
+		try {
+			result = expected.call( {}, actual ) === true;
+			expected = null;
+		} catch ( e ) {
+
+			// assign the "expected" to a nice error string to communicate the local failure to the user
+			expected = errorString( e );
+		}
+	}
+
+	return [ result, expected, message ];
 }
 
 // Provide an alternative to assert.throws(), for environments that consider throws a reserved word
