@@ -2,7 +2,7 @@ import { window, document, setTimeout } from "./globals";
 
 import equiv from "./equiv";
 import dump from "./dump";
-import module from "./module";
+import { runSuite, module } from "./module";
 import Assert from "./assert";
 import Logger from "./logger";
 import Test, { test, pushFailure } from "./test";
@@ -10,24 +10,25 @@ import exportQUnit from "./export";
 import reporters from "./reporters";
 
 import config from "./core/config";
+import { hooks } from "./core/hooks";
 import { extend, objectType, is, now } from "./core/utilities";
 import { registerLoggingCallbacks, runLoggingCallbacks } from "./core/logging";
 import { sourceFromStacktrace } from "./core/stacktrace";
 import ProcessingQueue from "./core/processing-queue";
-
-import SuiteReport from "./reports/suite";
 
 import { on, emit } from "./events";
 import onWindowError from "./core/onerror";
 import onUncaughtException from "./core/on-uncaught-exception";
 
 const QUnit = {};
-export const globalSuite = new SuiteReport();
 
-// The initial "currentModule" represents the global (or top-level) module that
-// is not explicitly defined by the user, therefore we add the "globalSuite" to
-// it since each module has a suiteReport associated with it.
-config.currentModule.suiteReport = globalSuite;
+// The "currentModule" object would ideally be defined using the createModule()
+// function. Since it isn't, add the missing suiteReport property to it now that
+// we have loaded all source code required to do so.
+//
+// TODO: Consider defining currentModule in core.js or module.js in its entirely
+// rather than partly in config.js and partly here.
+config.currentModule.suiteReport = runSuite;
 
 let globalStartCalled = false;
 let runStarted = false;
@@ -44,6 +45,7 @@ extend( QUnit, {
 	dump,
 	equiv,
 	reporters,
+	hooks,
 	is,
 	objectType,
 	on,
@@ -187,7 +189,7 @@ export function begin() {
 	}
 
 	// The test run is officially beginning now
-	emit( "runStart", globalSuite.start( true ) );
+	emit( "runStart", runSuite.start( true ) );
 	runLoggingCallbacks( "begin", {
 		totalTests: Test.count,
 		modules: modulesLog

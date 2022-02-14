@@ -13,28 +13,26 @@ version_added: "2.2.0"
 `QUnit.test.todo( name, callback )`<br>
 `QUnit.todo( name, callback )`
 
-Add a test which expects at least one failing assertion during its run.
+Add a test which expects at least one failing assertion or exception during its run.
 
 | parameter | description |
 |-----------|-------------|
 | `name` (string) | Title of unit being tested |
-| `callback` (function) | Function to close over assertions |
+| `callback` (function) | Function that performs the test |
 
-### Callback parameters: `callback( assert )`:
+### Callback parameters
 
 | parameter | description |
 |-----------|-------------|
 | `assert` (object) | A new instance object with the [assertion methods](../assert/index.md) |
 
-## Description
-
-Use this method to test a unit of code that is still under development (in a "todo" state). The "todo" test will pass as long as there is at least one assertion still failing.
+Use this method to test a unit of code that is still under development (in a "todo" state). The "todo" test will pass as long as there is at least one assertion still failing, or if an exception is thrown.
 
 When all assertions are passing, the "todo" test will fail, thus signaling that `QUnit.test.todo()` should be changed to [`QUnit.test()`](./test.md).
 
 You can also use [`QUnit.module.todo()`](./module.md) to manage the "todo" state for all tests within a module at once.
 
-### Changelog
+## Changelog
 
 | [QUnit 2.12](https://github.com/qunitjs/qunit/releases/tag/2.12.0) | The `QUnit.todo()` method was renamed to `QUnit.test.todo()`.<br/>Use of `QUnit.todo()` remains supported as an alias.
 | [QUnit 2.2](https://github.com/qunitjs/qunit/releases/tag/2.2.0) | The `QUnit.todo()` method was introduced.

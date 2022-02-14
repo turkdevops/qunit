@@ -1,26 +1,12 @@
 import config from "./config";
-import {
-	extend,
-	generateHash,
-	now
-} from "./utilities";
-import {
-	runLoggingCallbacks
-} from "./logging";
+import { extend, generateHash, now } from "./utilities";
+import { runLoggingCallbacks } from "./logging";
 
 import Promise from "../promise";
-import {
-	test
-} from "../test";
-import {
-	globalSuite
-} from "../core";
-import {
-	emit
-} from "../events";
-import {
-	setTimeout
-} from "../globals";
+import { test } from "../test";
+import { runSuite } from "../module";
+import { emit } from "../events";
+import { setTimeout } from "../globals";
 
 let priorityCount = 0;
 let unitSampler;
@@ -201,7 +187,7 @@ function done() {
 
 	ProcessingQueue.finished = true;
 
-	emit( "runEnd", globalSuite.end( true ) );
+	emit( "runEnd", runSuite.end( true ) );
 	runLoggingCallbacks( "done", {
 		passed,
 		failed: config.stats.bad,

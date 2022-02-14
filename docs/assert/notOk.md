@@ -7,16 +7,14 @@ groups:
 version_added: "1.18.0"
 ---
 
-`notOk( state [, message ] )`
+`notOk( state, message = "" )`
 
-A boolean check, inverse of `ok()`. Passes if the first argument is falsy.
+A boolean check, inverse of [`assert.ok()`](./ok.md). Passes if the first argument is falsy.
 
 | name | description |
 |------|-------------|
 | state | Expression being tested |
 | message (string) | A short description of the assertion |
-
-## Description
 
 `notOk()` requires just one argument. If the argument evaluates to false, the assertion passes; otherwise, it fails. If a second message argument is provided, it will be displayed in place of the result.
 

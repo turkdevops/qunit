@@ -9,8 +9,6 @@ version_added: "1.0.0"
 
 Decide selectively which tests should run based on a substring or pattern match.
 
-## Description
-
 <table>
 <tr>
   <th>type</th>
@@ -24,9 +22,9 @@ Decide selectively which tests should run based on a substring or pattern match.
 
 <p class="note" markdown="1">This option is available as [CLI option](https://qunitjs.com/cli/), as control in the [HTML Reporter](https://qunitjs.com/intro/#in-the-browser), and supported as URL query parameter.</p>
 
-Only run tests of which the module name or test name have a case-insensitive substring match for the provided string. You can inverse the filter, to run all tests that don't contain the string, by prefixing a bang character (`!`) to the string.
+Only run tests of which the module name or test name have a case-insensitive substring match for the provided string. You can inverse the filter by prefixing a bang character (`!`) to the string, which will exclude the matched tests, thus only running tests that don't contain the string.
 
-You can also match via a regular expression by setting the filter to a regular expression literal in string form, encloses by slashes, such as `/(this|that)/i`.
+You can also match via a regular expression by setting the filter to a regular expression literal in string form, encloses by slashes, such as `/(this|that)/`.
 
 While substring filters are always **case-insensitive**, a regular expression is only insensitive when passing the `/i` flag.
 
@@ -35,7 +33,7 @@ See also:
 
 ## Examples
 
-### Example: Substring filter
+### Substring filter
 
 The below matches `QUnit.module( "FooBar" )` and `QUnit.test( "createFooBar" )`.
 
@@ -49,7 +47,7 @@ As inverted filter, the below would skip `QUnit.module( "FooBar" )` and `QUnit.t
 QUnit.config.filter = '!foo';
 ```
 
-### Example: Regular expression filter
+### Regular expression filter
 
 The below would match `QUnit.test( "foo" )`, but not `QUnit.test( "Foo" )`.
 
@@ -61,4 +59,10 @@ The below would both match `QUnit.test( "foo" )` and `QUnit.test( "Foo" )`.
 
 ```js
 QUnit.config.filter = '/foo/i';
+```
+
+The below would exclude `QUnit.test( "foo" )` and `QUnit.test( "Foo" )`.
+
+```js
+QUnit.config.filter = '!/foo/i';
 ```
